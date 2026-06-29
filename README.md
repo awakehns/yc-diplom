@@ -58,10 +58,6 @@ BUCKET_NAME=$(terraform output -raw bucket_name)
 
 ```
 cd ../terraform-infra/
-
-cp ../terraform-bootstrap/terraform.tfvars ./
-
-nano terraform.tfvars
 ```
 
 ##### Убираю значения token и bucket_name
@@ -176,6 +172,8 @@ helm upgrade --install monitoring prometheus-community/kube-prometheus-stack \
   --create-namespace \
   --values k8s/monitoring/values.yaml
   
+helm install ingress-nginx ingress-nginx/ingress-nginx -n ingress-nginx --create-namespace
+  
 kubectl get pods -n monitoring -w
 ```
 
@@ -193,12 +191,11 @@ kubectl get pods -n monitoring -w
 
 #### Деплой инфраструктуры в terraform pipeline
 
-Изменения в `terraform-infra/` автоматически запускают GitHub Actions workflow [`.github/workflows/terraform.yaml`](.github/workflows/terraform.yaml):
+Изменения в `terraform-infra/` автоматически запускают GitHub Actions workflow
+[`.github/workflows/terraform.yaml`](.github/workflows/terraform.yaml):
 
 - **Pull Request** → выполняется `terraform plan`, результат виден в PR-проверках.
 - **Push в `main`** → выполняется `terraform apply` автоматически.
-
-Необходимые секреты в репозитории:
 
 После применения — деплой приложения:
 
