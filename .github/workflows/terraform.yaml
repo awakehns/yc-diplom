@@ -1,0 +1,54 @@
+name: Terraform — Plan & Apply
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "terraform-infra/**"
+  pull_request:
+    branches: [main]
+    paths:
+      - "terraform-infra/**"
+
+env:
+  TF_VAR_cloud_id: ${{ secrets.YC_CLOUD_ID }}
+  TF_VAR_folder_id: ${{ secrets.YC_FOLDER_ID }}
+  TF_VAR_token: ${{ secrets.YC_TOKEN }}
+
+jobs:
+  terraform:
+    name: Terraform Plan / Apply
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: terraform-infra
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "~1.9"
+
+      - name: Terraform Init
+        run: |
+          terraform init \
+            -backend-config="bucket=${{ secrets.TF_STATE_BUCKET }}" \
+            -backend-config="access_key=${{ secrets.YC_ACCESS_KEY }}" \
+            -backend-config="secret_key=${{ secrets.YC_SECRET_KEY }}" \
+            -backend-config="endpoint=https://storage.yandexcloud.net" \
+            -backend-config="region=ru-central1-a"
+
+      - name: Terraform Validate
+        run: terraform validate
+
+      - name: Terraform Plan
+        id: plan
+        run: terraform plan -no-color -out=tfplan
+
+      # Apply только при push в main (не при PR)
+      - name: Terraform Apply
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: terraform apply -auto-approve tfplan

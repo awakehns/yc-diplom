@@ -1,0 +1,12 @@
+# Локальный кеш провайдеров
+.terraform/
+
+# tfstate bootstrap хранится локально (умышленно)
+terraform.tfstate
+terraform.tfstate.backup
+.terraform.lock.hcl
+
+# Секреты — НЕ коммитим
+terraform.tfvars
+terraform-sa-key.json
+*.auto.tfvars

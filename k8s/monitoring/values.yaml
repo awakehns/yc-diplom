@@ -1,0 +1,50 @@
+# Настройки kube-prometheus-stack для учебного стенда
+# Устанавливается: helm upgrade --install monitoring prometheus-community/kube-prometheus-stack \
+#   -n monitoring --create-namespace -f values.yaml
+
+grafana:
+  enabled: true
+  adminPassword: "admin123"   # сменить в продакшене!
+
+  service:
+    type: LoadBalancer
+    port: 80
+    targetPort: 3000
+
+  persistence:
+    enabled: false             # отключено для экономии (pvc не нужен)
+
+prometheus:
+  prometheusSpec:
+    retention: 24h             # хранить метрики 1 день
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        cpu: 500m
+        memory: 512Mi
+
+alertmanager:
+  alertmanagerSpec:
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+      limits:
+        cpu: 100m
+        memory: 128Mi
+
+nodeExporter:
+  enabled: true
+
+kubeStateMetrics:
+  enabled: true
+
+# Уменьшаем нагрузку на scheduler/etcd для Managed K8s
+kubeScheduler:
+  enabled: false
+kubeControllerManager:
+  enabled: false
+kubeEtcd:
+  enabled: false

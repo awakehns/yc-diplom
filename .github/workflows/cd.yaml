@@ -1,0 +1,60 @@
+name: CD — Deploy to Kubernetes on tag
+
+on:
+  push:
+    tags:
+      - "v*.*.*"              # только теги вида v1.0.0
+
+env:
+  REGISTRY: cr.yandex
+  IMAGE_NAME: ${{ secrets.YC_REGISTRY_ID }}/diploma-app
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Get tag
+        id: tag
+        run: echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+
+      - name: Login to Yandex Container Registry
+        run: |
+          echo '${{ secrets.YC_SA_JSON_KEY }}' | \
+          docker login --username json_key --password-stdin cr.yandex
+
+      - name: Build & Push tagged image
+        working-directory: app
+        run: |
+          docker build \
+            --build-arg VERSION=${{ steps.tag.outputs.version }} \
+            -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.tag.outputs.version }} \
+            .
+          docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.tag.outputs.version }}
+
+      - name: Setup kubectl (YC CLI)
+        uses: yc-actions/yc-cr-login@v1
+        with:
+          yc-sa-json-credentials: ${{ secrets.YC_SA_JSON_KEY }}
+
+      - name: Get kubeconfig
+        run: |
+          echo '${{ secrets.YC_SA_JSON_KEY }}' > /tmp/key.json
+          curl -sSL https://storage.yandexcloud.net/yandexcloud-yc/install.sh | bash -s -- -a
+          ~/yandex-cloud/bin/yc config set service-account-key /tmp/key.json
+          ~/yandex-cloud/bin/yc config set cloud-id ${{ secrets.YC_CLOUD_ID }}
+          ~/yandex-cloud/bin/yc config set folder-id ${{ secrets.YC_FOLDER_ID }}
+          ~/yandex-cloud/bin/yc managed-kubernetes cluster get-credentials \
+            --id ${{ secrets.YC_K8S_CLUSTER_ID }} \
+            --external --force
+
+      - name: Deploy to Kubernetes
+        run: |
+          kubectl set image deployment/diploma-app \
+            diploma-app=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.tag.outputs.version }}
+          kubectl rollout status deployment/diploma-app --timeout=120s
+
+      - name: Verify deployment
+        run: kubectl get pods -l app=diploma-app

@@ -1,0 +1,12 @@
+# Локальный кеш провайдеров
+.terraform/
+
+# State хранится в S3, локально не нужен
+terraform.tfstate
+terraform.tfstate.backup
+.terraform.lock.hcl
+
+# Секреты
+terraform.tfvars
+*.auto.tfvars
+cicd-sa-key.json
